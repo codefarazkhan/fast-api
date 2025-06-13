@@ -26,7 +26,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db_user = UserModel(
         name=user.name,
         email=user.email,
-        password=hashed_password
+        hashed_password=hashed_password
     )
     db.add(db_user)
     db.commit()
@@ -51,7 +51,7 @@ def signin(user_data: UserSignIn, db: Session = Depends(get_db)):
         )
     
     # Verify password
-    if not verify_password(user_data.password, db_user.password):
+    if not verify_password(user_data.password, db_user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",

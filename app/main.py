@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app.routes import users, todo
-from app.db.session import Base, engine
+from app.db.database import Base, engine
 
 app = FastAPI()
 

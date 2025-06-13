@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
-from app.db.session import Base
+from app.db.database import Base
 
 class Todo(Base):
     __tablename__ = "todos"
