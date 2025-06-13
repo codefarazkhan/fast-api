@@ -2,19 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.models.user import User as UserModel
 from app.schemas.user import User, UserCreate, UserSignIn, Token
-from app.db.dependencies import get_db
-from app.core.security import create_access_token, verify_token
+from app.db.session import get_db
+from app.core.auth import create_access_token, verify_password, get_password_hash
 from typing import List
-from passlib.context import CryptContext
+from datetime import timedelta
 
 router = APIRouter()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
 
 @router.get("/users", response_model=List[User])
 def get_users(db: Session = Depends(get_db)):
@@ -41,7 +34,8 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 
     # Create access token
     access_token = create_access_token(
-        data={"sub": user.email}
+        data={"sub": str(db_user.id)},
+        expires_delta=timedelta(minutes=30)
     )
     return {"access_token": access_token}
 
@@ -66,6 +60,7 @@ def signin(user_data: UserSignIn, db: Session = Depends(get_db)):
     
     # Create access token
     access_token = create_access_token(
-        data={"sub": user_data.email}
+        data={"sub": str(db_user.id)},
+        expires_delta=timedelta(minutes=30)
     )
     return {"access_token": access_token}
