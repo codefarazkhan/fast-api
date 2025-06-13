@@ -1,10 +1,15 @@
 from fastapi import FastAPI
-from app.routes import hello
+from app.routes import users
+from app.db.database import Base, engine
+from app.models import user  # ✅ Import models before create_all
 
 app = FastAPI()
 
-app.include_router(hello.router)
+# Create tables in DB
+Base.metadata.create_all(bind=engine)
+
+app.include_router(users.router)
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to FastAPI!"}
+    return {"message": "FastAPI + MySQL"}
