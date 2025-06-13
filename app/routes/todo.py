@@ -18,7 +18,7 @@ def create_todo(todo: TodoCreate = Body(...), db=Depends(get_db_session), curren
     return db_todo
 
 @router.get("/")
-def read_todos(skip: int = 0, limit: int = 100, db: Session = Depends(get_db_session), current_user: User = Depends(get_current_user)):
+def read_todos(skip=0, limit=100, db=Depends(get_db_session), current_user=Depends(get_current_user)):
     todos = db.query(Todo).filter(Todo.user_id == current_user.id).offset(skip).limit(limit).all()
     return todos
 
