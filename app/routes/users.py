@@ -1,27 +1,24 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from app.models.user import User as UserModel
 from app.schemas.user import User, UserCreate, UserSignIn, Token
 from app.db.session import get_db_session
 from app.core.auth import create_access_token, verify_password, get_password_hash
-from typing import List
 from datetime import timedelta
 
 router = APIRouter()
 
-@router.get("/users", response_model=List[User])
-def get_users(db: Session = Depends(get_db_session)):
+@router.get("/users")
+def get_users(db=Depends(get_db_session)):
     users = db.query(UserModel).all()
     return users
 
-@router.post("/users", response_model=Token)
-def create_user(user: UserCreate, db: Session = Depends(get_db_session)):
-    # Check if user with email already exists
+@router.post("/users")
+def create_user(user: UserCreate, db=Depends(get_db_session)):
     db_user = db.query(UserModel).filter(UserModel.email == user.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Create new user with hashed password
     hashed_password = get_password_hash(user.password)
     db_user = UserModel(
         name=user.name,
@@ -32,16 +29,14 @@ def create_user(user: UserCreate, db: Session = Depends(get_db_session)):
     db.commit()
     db.refresh(db_user)
 
-    # Create access token
     access_token = create_access_token(
         data={"sub": str(db_user.id)},
         expires_delta=timedelta(minutes=30)
     )
     return {"access_token": access_token}
 
-@router.post("/signin", response_model=Token)
-def signin(user_data: UserSignIn, db: Session = Depends(get_db_session)):
-    # Find user by email
+@router.post("/signin")
+def signin(user_data: UserSignIn = Body(...), db=Depends(get_db_session)):
     db_user = db.query(UserModel).filter(UserModel.email == user_data.email).first()
     if not db_user:
         raise HTTPException(
@@ -50,7 +45,6 @@ def signin(user_data: UserSignIn, db: Session = Depends(get_db_session)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Verify password
     if not verify_password(user_data.password, db_user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -58,7 +52,6 @@ def signin(user_data: UserSignIn, db: Session = Depends(get_db_session)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Create access token
     access_token = create_access_token(
         data={"sub": str(db_user.id)},
         expires_delta=timedelta(minutes=30)
