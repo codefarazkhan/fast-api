@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Body, UploadFile, File, Form 
 from app.models.user import User as UserModel
 from app.schemas.user import UserCreate, UserSignIn, UserProfileUpdate
 from app.db.session import get_db_session
@@ -63,27 +63,27 @@ def signin(user_data: UserSignIn, db=Depends(get_db_session)):
 
 @router.put("/users/profile")
 async def update_profile(
-    profile_data: UserProfileUpdate = Body(None),
+    name: Optional[str] = Form(None),
+    email: Optional[str] = Form(None),
     profile_image: Optional[UploadFile] = File(None),
     current_user: UserModel = Depends(get_current_user),
     db=Depends(get_db_session)
 ):
     # Update profile data if provided
-    if profile_data:
-        if profile_data.name:
-            current_user.name = profile_data.name
-        if profile_data.email:
-            # Check if email is already taken
-            existing_user = db.query(UserModel).filter(
-                UserModel.email == profile_data.email,
-                UserModel.id != current_user.id
-            ).first()
-            if existing_user:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Email already registered"
-                )
-            current_user.email = profile_data.email
+    if name:
+        current_user.name = name
+    if email:
+        # Check if email is already taken
+        existing_user = db.query(UserModel).filter(
+            UserModel.email == email,
+            UserModel.id != current_user.id
+        ).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        current_user.email = email
 
     # Handle profile image upload
     if profile_image:
