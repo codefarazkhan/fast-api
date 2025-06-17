@@ -16,7 +16,7 @@ def get_db_session():
     
     Usage:
         @app.get("/")
-        def read_items(db: Session = Depends(get_db_session)):
+        def read_items(db=Depends(get_db_session)):
             ...
     """
     db = SessionLocal()
