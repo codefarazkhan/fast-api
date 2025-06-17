@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, status, Body, UploadFile, File
 from app.models.user import User as UserModel
-from app.schemas.user import UserCreate, UserSignIn
+from app.schemas.user import UserCreate, UserSignIn, UserProfileUpdate
 from app.db.session import get_db_session
-from app.core.auth import create_access_token, verify_password, get_password_hash
+from app.core.auth import create_access_token, verify_password, get_password_hash, get_current_user
 from datetime import timedelta
+import os
+import shutil
+from typing import Optional
 
 router = APIRouter()
 
@@ -36,7 +38,8 @@ def create_user(user: UserCreate, db=Depends(get_db_session)):
     return {"access_token": access_token}
 
 @router.post("/signin")
-def signin(user_data: UserSignIn = Body(...), db=Depends(get_db_session)):
+# def signin(user_data: UserSignIn = Body(...), db=Depends(get_db_session)):
+def signin(user_data: UserSignIn, db=Depends(get_db_session)):
     db_user = db.query(UserModel).filter(UserModel.email == user_data.email).first()
     if not db_user:
         raise HTTPException(
@@ -57,3 +60,49 @@ def signin(user_data: UserSignIn = Body(...), db=Depends(get_db_session)):
         expires_delta=timedelta(minutes=30)
     )
     return {"access_token": access_token}
+
+@router.put("/users/profile")
+async def update_profile(
+    profile_data: UserProfileUpdate = Body(None),
+    profile_image: Optional[UploadFile] = File(None),
+    current_user: UserModel = Depends(get_current_user),
+    db=Depends(get_db_session)
+):
+    # Update profile data if provided
+    if profile_data:
+        if profile_data.name:
+            current_user.name = profile_data.name
+        if profile_data.email:
+            # Check if email is already taken
+            existing_user = db.query(UserModel).filter(
+                UserModel.email == profile_data.email,
+                UserModel.id != current_user.id
+            ).first()
+            if existing_user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email already registered"
+                )
+            current_user.email = profile_data.email
+
+    # Handle profile image upload
+    if profile_image:
+        # Create uploads directory if it doesn't exist
+        upload_dir = "uploads/profile_images"
+        os.makedirs(upload_dir, exist_ok=True)
+
+        # Generate unique filename
+        file_extension = os.path.splitext(profile_image.filename)[1]
+        filename = f"profile_{current_user.id}{file_extension}"
+        file_path = os.path.join(upload_dir, filename)
+
+        # Save the file
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(profile_image.file, buffer)
+
+        # Update user's profile image path
+        current_user.profile_image = f"/uploads/profile_images/{filename}"
+
+    db.commit()
+    db.refresh(current_user)
+    return current_user
